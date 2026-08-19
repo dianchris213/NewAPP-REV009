@@ -72,6 +72,41 @@ export type Settings = {
   cloudSync: boolean;
 };
 
+export type Language = "id" | "en";
+
+export type WalletType = "cash" | "bank" | "ewallet";
+
+export type Wallet = {
+  id: string;
+  name: string;
+  type: WalletType;
+  provider?: string;
+  balance: number;
+};
+
+export type WalletActivityKind = "topup" | "transfer" | "create";
+
+export type WalletActivity = {
+  id: string;
+  kind: WalletActivityKind;
+  title: string;
+  detail: string;
+  amount: number;
+  date: string; // ISO
+};
+
+export const WALLET_TYPE_LABEL: Record<WalletType, string> = {
+  cash: "Tunai",
+  bank: "Bank Utama",
+  ewallet: "E-Wallet",
+};
+
+export const WALLET_PROVIDERS: Record<WalletType, string[]> = {
+  cash: ["Dompet Fisik", "Kas Kantor", "Tabungan Rumah"],
+  bank: ["BCA", "Mandiri", "BNI", "BRI", "CIMB Niaga", "Permata"],
+  ewallet: ["GoPay", "OVO", "DANA", "ShopeePay", "LinkAja"],
+};
+
 const STORAGE_KEY = "tmab-state-v1";
 
 const defaultSettings: Settings = {
@@ -80,6 +115,44 @@ const defaultSettings: Settings = {
   biometricLock: false,
   cloudSync: false,
 };
+
+const seedWallets = (): Wallet[] => [
+  { id: "w1", name: "Tunai", type: "cash", provider: "Dompet Fisik", balance: 1250000 },
+  { id: "w2", name: "Bank Utama", type: "bank", provider: "BCA", balance: 6400000 },
+  { id: "w3", name: "E-Wallet", type: "ewallet", provider: "GoPay", balance: 850000 },
+];
+
+const seedWalletActivity = (): WalletActivity[] => {
+  const now = Date.now();
+  const day = 86_400_000;
+  return [
+    {
+      id: "wa1",
+      kind: "topup",
+      title: "Isi Saldo E-Wallet",
+      detail: "GoPay · dari Bank Utama",
+      amount: 300000,
+      date: new Date(now - day).toISOString(),
+    },
+    {
+      id: "wa2",
+      kind: "transfer",
+      title: "Transfer Antar Kantong",
+      detail: "Bank Utama → Tunai",
+      amount: 500000,
+      date: new Date(now - 3 * day).toISOString(),
+    },
+    {
+      id: "wa3",
+      kind: "create",
+      title: "Kantong Dibuat",
+      detail: "E-Wallet · GoPay",
+      amount: 0,
+      date: new Date(now - 20 * day).toISOString(),
+    },
+  ];
+};
+
 
 const seedTransactions = (): Transaction[] => {
   const now = Date.now();
