@@ -344,6 +344,7 @@ const PocketCard = memo(function PocketCard({
           startRef.current = { x: e.clientX, y: e.clientY };
         }}
         onClick={(e) => {
+          e.stopPropagation();
           const start = startRef.current;
           startRef.current = null;
           if (
