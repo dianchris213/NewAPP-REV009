@@ -254,7 +254,7 @@ function Home() {
       >
         <div id="recent-transactions">
           {visible.length ? (
-            <TransactionList items={visible} />
+            <TransactionList items={visible} actions />
           ) : (
             <EmptyState
               icon="receipt"
@@ -301,7 +301,7 @@ function Home() {
         subtitle={`${pocketItems.length} entri`}
       >
         {pocketItems.length ? (
-          <TransactionList items={pocketItems} />
+          <TransactionList items={pocketItems} actions />
         ) : (
           <EmptyState
             icon="receipt"
