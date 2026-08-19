@@ -123,25 +123,35 @@ export function TopBar({
 
   return (
     <div className="relative flex items-center justify-between">
-      <button
-        type="button"
-        data-testid="profile-button"
-        aria-label="Edit profil"
-        onClick={openEdit}
-        className="flex min-h-12 items-center gap-3 rounded-full pr-3 text-left transition-colors hover:bg-surface-variant/40 active:scale-[0.98]"
-      >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant/30 bg-surface-container-high text-on-surface-variant">
+      <div className="flex min-h-12 items-center gap-3">
+        {/* Only the avatar opens the profile editor; the greeting and name are
+            plain text so they never trigger a modal. */}
+        <button
+          type="button"
+          data-testid="profile-button"
+          aria-label="Edit foto profil"
+          aria-haspopup="dialog"
+          onClick={(e) => {
+            e.stopPropagation();
+            openEdit();
+          }}
+          className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-outline-variant/30 bg-surface-container-high text-on-surface-variant transition-transform active:scale-95 focus-visible:ring-2 focus-visible:ring-primary/60"
+        >
           {displayAvatar ? (
-            <img src={displayAvatar} alt={`Foto profil ${displayName}`} className="h-full w-full object-cover" />
+            <img
+              src={displayAvatar}
+              alt={`Foto profil ${displayName}`}
+              className="h-full w-full object-cover"
+            />
           ) : (
             <Icon name="person" className="text-[20px]" />
           )}
-        </span>
+        </button>
         <span className="flex flex-col">
           <span className="text-meta text-on-surface-variant/80">{displayHandle}</span>
           <h1 className="m-0 text-section text-on-surface">{title}</h1>
         </span>
-      </button>
+      </div>
       <div className="flex items-center gap-1 text-on-surface-variant">
         {actions ?? (
           <>
