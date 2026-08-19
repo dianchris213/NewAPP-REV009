@@ -446,6 +446,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteTransaction,
       toggleSetting,
       setAddTxOpen,
+      language,
+      setLanguage,
+      wallets,
+      walletActivity,
+      addWallet,
       balance: totalIncome - totalExpense,
       totalIncome,
       totalExpense,
@@ -472,9 +477,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateTransaction,
       deleteTransaction,
       toggleSetting,
+      language,
+      wallets,
+      walletActivity,
+      addWallet,
       totalIncome,
       totalExpense,
     ],
+
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
