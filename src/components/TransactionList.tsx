@@ -1,4 +1,5 @@
 import { memo, useCallback, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Icon } from "./Icon";
 import { useModalA11y } from "@/hooks/use-modal-a11y";
@@ -13,21 +14,15 @@ type PendingAction =
 
 const TransactionRow = memo(function TransactionRow({
   t,
-  onEdit,
-  onDelete,
+  onSelect,
   actions,
 }: {
   t: Transaction;
-  onEdit: (t: Transaction) => void;
-  onDelete: (t: Transaction) => void;
+  onSelect: (t: Transaction) => void;
   actions: boolean;
 }) {
-  return (
-    <li
-      className={`flex items-center gap-3 border-b border-outline-variant/20 py-3 last:border-0 transition-opacity ${
-        t.pending ? "opacity-60" : "opacity-100"
-      }`}
-    >
+  const content = (
+    <>
       <span
         className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
           t.type === "income" ? "bg-success/15 text-success" : "bg-error/15 text-error"
@@ -39,7 +34,7 @@ const TransactionRow = memo(function TransactionRow({
           fill={1}
         />
       </span>
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col text-left">
         <span className="truncate text-body font-medium text-on-surface">{t.category}</span>
         {t.note ? (
           <span className="truncate text-meta text-on-surface-variant">{t.note}</span>
@@ -58,56 +53,71 @@ const TransactionRow = memo(function TransactionRow({
         {formatIDR(t.amount)}
       </span>
       {actions ? (
-        <span className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            data-testid={`tx-edit-${t.id}`}
-            aria-label={`Ubah transaksi ${t.category} ${formatIDR(t.amount)}`}
-            disabled={!!t.pending}
-            onClick={() => onEdit(t)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-variant/50 text-on-surface-variant transition-colors hover:bg-primary-container/40 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-40"
-          >
-            <Icon name="edit_square" className="text-[17px]" />
-          </button>
-          <button
-            type="button"
-            data-testid={`tx-delete-${t.id}`}
-            aria-label={`Hapus transaksi ${t.category} ${formatIDR(t.amount)}`}
-            disabled={!!t.pending}
-            onClick={() => onDelete(t)}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-error/10 text-error transition-colors hover:bg-error/20 focus-visible:ring-2 focus-visible:ring-error/60 disabled:opacity-40"
-          >
-            <Icon name="delete_outline" className="text-[17px]" />
-          </button>
-        </span>
+        <Icon
+          name="more_horiz"
+          className="shrink-0 text-[18px] text-on-surface-variant/60"
+          aria-hidden="true"
+        />
       ) : null}
+    </>
+  );
+
+  return (
+    <li
+      className={`border-b border-outline-variant/20 last:border-0 transition-opacity ${
+        t.pending ? "opacity-60" : "opacity-100"
+      }`}
+    >
+      {actions ? (
+        <button
+          type="button"
+          data-testid={`tx-row-${t.id}`}
+          aria-haspopup="dialog"
+          aria-label={`Aksi transaksi ${t.category} ${formatIDR(t.amount)}`}
+          disabled={!!t.pending}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(t);
+          }}
+          className="flex w-full items-center gap-3 py-3 text-left transition-colors hover:bg-surface-variant/25 focus-visible:ring-2 focus-visible:ring-primary/60 disabled:opacity-50"
+        >
+          {content}
+        </button>
+      ) : (
+        <div className="flex items-center gap-3 py-3">{content}</div>
+      )}
     </li>
   );
 });
 
 /**
- * Transaction list with strict two-step confirmation:
- * step 1 opens the edit form / delete warning, step 2 requires an explicit
- * final confirmation before the store is mutated.
+ * Transaction list with a lightweight bottom action sheet and strict two-step
+ * confirmation: step 1 opens the edit form / delete warning, step 2 requires an
+ * explicit final confirmation before the store is mutated.
  */
 export const TransactionList = memo(function TransactionList({
   items,
   actions = false,
 }: {
   items: Transaction[];
-  /** Edit/delete controls are opt-in: only the full transaction overlay uses them. */
+  /** Tap-to-act controls are opt-in per surface. */
   actions?: boolean;
 }) {
   const { updateTransaction, deleteTransaction } = useApp();
+  const [sheetTx, setSheetTx] = useState<Transaction | null>(null);
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [pending, setPending] = useState<PendingAction | null>(null);
 
+  const closeSheet = useCallback(() => setSheetTx(null), []);
+
   const startEdit = useCallback((t: Transaction) => {
+    setSheetTx(null);
     setPending(null);
     setEditing(t);
   }, []);
 
   const startDelete = useCallback((t: Transaction) => {
+    setSheetTx(null);
     setEditing(null);
     setPending({ kind: "delete", tx: t });
   }, []);
@@ -131,17 +141,20 @@ export const TransactionList = memo(function TransactionList({
 
   return (
     <>
-      <ul className="glass-card rounded-[18px] px-4">
+      <ul className="glass-card overflow-hidden rounded-[18px] px-4">
         {items.map((t) => (
-          <TransactionRow
-            key={t.id}
-            t={t}
-            actions={actions}
-            onEdit={startEdit}
-            onDelete={startDelete}
-          />
+          <TransactionRow key={t.id} t={t} actions={actions} onSelect={setSheetTx} />
         ))}
       </ul>
+
+      {sheetTx ? (
+        <ActionSheet
+          tx={sheetTx}
+          onClose={closeSheet}
+          onEdit={() => startEdit(sheetTx)}
+          onDelete={() => startDelete(sheetTx)}
+        />
+      ) : null}
 
       {editing ? (
         <EditDialog
@@ -168,6 +181,105 @@ export const TransactionList = memo(function TransactionList({
     </>
   );
 });
+
+/** Lightweight bottom action sheet: edit / delete for one transaction. */
+function ActionSheet({
+  tx,
+  onEdit,
+  onDelete,
+  onClose,
+}: {
+  tx: Transaction;
+  onEdit: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const ref = useModalA11y<HTMLDivElement>(true, onClose);
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[195] flex items-end justify-center bg-black/60 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Aksi transaksi ${tx.category}`}
+        data-testid="tx-action-sheet"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-t-[26px] border-t border-outline-variant/20 bg-surface-container-high p-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] shadow-2xl"
+      >
+        <span
+          aria-hidden="true"
+          className="mx-auto mb-3 block h-1 w-10 rounded-full bg-outline-variant/60"
+        />
+        <div className="mb-3 flex min-w-0 items-center gap-3">
+          <span
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+              tx.type === "income" ? "bg-success/15 text-success" : "bg-error/15 text-error"
+            }`}
+          >
+            <Icon
+              name={tx.type === "income" ? "south_west" : "north_east"}
+              className="text-[18px]"
+              fill={1}
+            />
+          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-body font-semibold text-on-surface">{tx.category}</span>
+            <span className="truncate text-meta text-on-surface-variant/80">
+              {formatIDR(tx.amount)}
+              {tx.note ? ` · ${tx.note}` : ""}
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            autoFocus
+            data-testid={`tx-edit-${tx.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="flex h-12 w-full items-center gap-3 rounded-2xl bg-surface-variant/60 px-4 text-[14px] font-semibold text-on-surface transition-transform active:scale-[0.99]"
+          >
+            <Icon name="edit_square" className="text-[19px] text-primary" />
+            Ubah Transaksi
+          </button>
+          <button
+            type="button"
+            data-testid={`tx-delete-${tx.id}`}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="flex h-12 w-full items-center gap-3 rounded-2xl bg-error/10 px-4 text-[14px] font-semibold text-error transition-transform active:scale-[0.99]"
+          >
+            <Icon name="delete_outline" className="text-[19px]" />
+            Hapus Transaksi
+          </button>
+          <button
+            type="button"
+            data-testid="tx-sheet-cancel"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="h-12 w-full rounded-2xl text-[13px] font-semibold text-on-surface-variant transition-transform active:scale-[0.99]"
+          >
+            Batal
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+
 
 function ConfirmDialog({
   title,
