@@ -212,6 +212,11 @@ type AppState = {
   deleteTransaction: (id: string) => void;
   toggleSetting: (key: keyof Settings) => void;
   setAddTxOpen: (open: boolean) => void;
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  wallets: Wallet[];
+  walletActivity: WalletActivity[];
+  addWallet: (input: { name: string; type: WalletType; provider?: string; balance: number }) => void;
   balance: number;
   totalIncome: number;
   totalExpense: number;
@@ -225,11 +230,43 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authLoading, setAuthLoading] = useState<null | "telegram" | "google">(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
+  const [language, setLanguage] = useState<Language>("id");
+  const [wallets, setWallets] = useState<Wallet[]>(seedWallets);
+  const [walletActivity, setWalletActivity] = useState<WalletActivity[]>(seedWalletActivity);
   const [addTxOpen, setAddTxOpen] = useState(false);
   const [allTxOpen, setAllTxOpen] = useState(false);
   const [txFilters, setTxFiltersState] = useState<TxFilters>(defaultTxFilters);
   const [notifications] = useState<AppNotification[]>(defaultNotifications);
   const [unreadCount, setUnreadCount] = useState(defaultNotifications.length);
+
+  const addWallet = useCallback(
+    (input: { name: string; type: WalletType; provider?: string; balance: number }) => {
+      const name = input.name.trim();
+      if (!name) return;
+      const id = `w${Date.now()}`;
+      const wallet: Wallet = {
+        id,
+        name,
+        type: input.type,
+        balance: Math.max(0, Math.round(input.balance) || 0),
+        ...(input.provider?.trim() ? { provider: input.provider.trim() } : {}),
+      };
+      setWallets((prev) => [...prev, wallet]);
+      setWalletActivity((prev) => [
+        {
+          id: `wa${Date.now()}`,
+          kind: "create",
+          title: "Kantong Dibuat",
+          detail: `${WALLET_TYPE_LABEL[wallet.type]}${wallet.provider ? ` · ${wallet.provider}` : ""}`,
+          amount: wallet.balance,
+          date: new Date().toISOString(),
+        },
+        ...prev,
+      ]);
+    },
+    [],
+  );
+
 
   const markNotificationsRead = useCallback(() => setUnreadCount(0), []);
 
